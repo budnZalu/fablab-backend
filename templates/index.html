@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+
+<html>
+{% load static %}
+<head>
+
+    <meta charset="utf-8"/>
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+
+
+    <link rel="stylesheet" type="text/css"
+          href="{% static 'styles/common.css' %}"/>
+    <link rel="stylesheet" type="text/css"
+          href="{% static 'styles/fonts.css' %}"/>
+    <link rel="stylesheet" type="text/css"
+          href="{% static 'styles/styles.css' %}"/>
+
+    <title>FabLab Moscow</title>
+
+
+</head>
+
+<body class="flex-column">
+
+<main class="fablab-index main">
+    <section class="header">
+        <a href="{% url 'index' %}">
+            <h2 class="title">FabLab Moscow</h2>
+        </a>
+    </section>
+
+    <section class="subheader">
+        <div class="flex-row">
+            <div class="stick"></div>
+            <h2 class="subtitle">Наши услуги</h2>
+            <form class="flexRow" method="GET" action="{% url 'index' %}">
+                <input class="search-field"
+                        type="text" name="job_name" placeholder="Поиск..."
+                        value="{{ request.GET.object_name }}">
+                <button type="submit" class="animated">
+                    <img class="search-btn" height="48" width="48"
+                 src="{% static 'images/search.svg' %}"
+                 alt="alt text"/>
+                </button>
+            </form>
+
+            <a href="{% url 'printing' 1 %}">
+                <img class="cart-button"
+                     src="{% static 'images/cart.svg' %}"
+                     alt="alt text"/>
+            </a>
+        </div>
+    </section>
+
+    <section class="cards-section">
+        <div class="cards-container">
+            <div class="flex_row">
+                {% for job in jobs %}
+                    <div class="card-container">
+                        <a href="{% url 'job' job.id %}">
+                            <div class="flex-col">
+                                <img class="card-image" src="{{ job.image }}"
+                                     alt="alt text"/>
+                                <h2 class="card-title">{{ job.name }}</h2>
+                                <h3 class="card-price">Цена: {{ job.price }}
+                                    руб</h3>
+                                <button class="card-btn">
+                                    Добавить в заказ
+                                </button>
+                            </div>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="footer">
+        <p class="footer-text">FabLab Moscow - лаборатория цифрового
+            производства с передовым оборудованием и технологиями в области 3D
+            моделирования и электроники.</p>
+    </section>
+
+</main>
+
+</body>
+
+</html>
