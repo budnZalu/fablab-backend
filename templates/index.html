@@ -37,19 +37,19 @@
             <h2 class="subtitle">Наши услуги</h2>
             <form class="flexRow" method="GET" action="{% url 'index' %}">
                 <input class="search-field"
-                        type="text" name="job_name" placeholder="Поиск..."
-                        value="{{ request.GET.object_name }}">
+                       type="text" name="job_name" placeholder="Поиск..."
+                       value="{{ request.GET.object_name }}">
                 <button type="submit" class="animated">
                     <img class="search-btn" height="48" width="48"
-                 src="{% static 'images/search.svg' %}"
-                 alt="alt text"/>
+                         src="{% static 'images/search.svg' %}"
+                         alt="alt text"/>
                 </button>
             </form>
 
             <a href="{% url 'printing' 1 %}">
-                <img class="cart-button"
-                     src="{% static 'images/cart.svg' %}"
+                <img class="cart-button" src="{% static 'images/cart.svg' %}"
                      alt="alt text"/>
+                <span class="cart-count">2</span>
             </a>
         </div>
     </section>
@@ -83,6 +83,11 @@
             моделирования и электроники.</p>
     </section>
 
+</main>
+
+</body>
+
+</html>
 </main>
 
 </body>
