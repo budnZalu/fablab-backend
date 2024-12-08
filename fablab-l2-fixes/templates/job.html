@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+
+<html>
+{% load static %}
+<head>
+
+    <meta charset="utf-8"/>
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+
+
+    <link rel="stylesheet" type="text/css"
+          href="{% static 'styles/common.css' %}"/>
+    <link rel="stylesheet" type="text/css"
+          href="{% static 'styles/fonts.css' %}"/>
+    <link rel="stylesheet" type="text/css"
+          href="{% static 'styles/styles.css' %}"/>
+
+    <title>{{ job.name }}</title>
+
+</head>
+
+<body class="flex-column">
+
+<main class="fablab-job main">
+    <section class="header">
+        <a href="{% url 'index' %}">
+            <h2 class="title">FabLab Moscow</h2>
+        </a>
+    </section>
+
+    <section class="subheader">
+        <div class="flex-row">
+            <div class="stick"></div>
+            <h2 class="subtitle">{{ job.name }}</h2>
+        </div>
+    </section>
+
+    <section class="card-content">
+        <div class="content-box">
+            <div class="flex-row1">
+                <img class="image"
+                     src="{{ job.image }}"
+                     alt="alt text"/>
+                <div class="flex_col">
+                    <h3 class="card-text">{{ job.info }}</h3>
+                    <h2 class="price">Цена: {{ job.price }} руб</h2>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="footer">
+        <p class="footer-text">FabLab Moscow - лаборатория цифрового
+            производства с передовым оборудованием и технологиями в области 3D
+            моделирования и электроники.</p>
+    </section>
+
+</main>
+
+</body>
+
+</html>
