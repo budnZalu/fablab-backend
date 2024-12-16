@@ -14,7 +14,7 @@ class Job(models.Model):
         ('deleted', 'Удалена')
     ]
     status = models.CharField(max_length=10, choices=statuses,
-                              default='default')
+                              default='visible')
 
 
 class Printing(models.Model):
@@ -40,7 +40,7 @@ class Printing(models.Model):
 class PrintingJob(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE)
     printing = models.ForeignKey(Printing, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(blank=True, null=True)
+    duration = models.PositiveIntegerField(blank=True, null=True, default=1)
 
     class Meta:
         unique_together = (('job', 'printing'),)
