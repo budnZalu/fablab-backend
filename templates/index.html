@@ -45,12 +45,19 @@
                          alt="alt text"/>
                 </button>
             </form>
-
-            <a href="{% url 'printing' 1 %}">
+            {% if draft %}
+                <a href="{% url 'printing' draft.id %}">
+                    <img class="cart-button"
+                         src="{% static 'images/cart.svg' %}"
+                         alt="alt text"/>
+                    {% if draft_jobs.count > 0 %}
+                        <span class="cart-count">{{ draft_jobs.count }}</span>
+                    {% endif %}
+                </a>
+            {% else %}
                 <img class="cart-button" src="{% static 'images/cart.svg' %}"
                      alt="alt text"/>
-                <span class="cart-count">2</span>
-            </a>
+            {% endif %}
         </div>
     </section>
 
@@ -61,14 +68,19 @@
                     <div class="card-container">
                         <a href="{% url 'job' job.id %}">
                             <div class="flex-col">
-                                <img class="card-image" src="{{ job.image }}"
+                                <img class="card-image"
+                                     src="{{ job.image }}"
                                      alt="alt text"/>
                                 <h2 class="card-title">{{ job.name }}</h2>
                                 <h3 class="card-price">Цена: {{ job.price }}
                                     руб</h3>
-                                <button class="card-btn">
-                                    Добавить в заказ
-                                </button>
+                                <form method="POST"
+                                      action="{% url 'add_to_printing' job.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="card-btn">
+                                        Добавить в заказ
+                                    </button>
+                                </form>
                             </div>
                         </a>
                     </div>
@@ -83,11 +95,6 @@
             моделирования и электроники.</p>
     </section>
 
-</main>
-
-</body>
-
-</html>
 </main>
 
 </body>
