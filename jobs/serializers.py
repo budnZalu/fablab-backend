@@ -1,7 +1,9 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from jobs.models import Job, Printing, PrintingJob
+
+User = get_user_model()
 
 
 class JobSerializer(serializers.ModelSerializer):
@@ -31,11 +33,11 @@ class PrintingListSerializer(serializers.ModelSerializer):
         ]
 
     def get_author(self, obj):
-        return obj.author.username
+        return obj.author.email
 
     def get_moderator(self, obj):
         if obj.moderator:
-            return obj.moderator.username
+            return obj.moderator.email
         return None
 
 
@@ -55,19 +57,19 @@ class PrintingDetailSerializer(serializers.ModelSerializer):
                             'total_price', 'jobs']
 
     def get_author(self, obj):
-        return obj.author.username
+        return obj.author.email
 
     def get_moderator(self, obj):
         if obj.moderator:
-            return obj.moderator.username
+            return obj.moderator.email
         return None
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'email', 'password']
-
+        fields = ['email', 'password', 'is_staff', 'is_superuser']
+        read_only_fields = ['is_staff', 'is_superuser']
     def create(self, validated_data):
         user = User.objects.create_user(
             username=validated_data['username'],

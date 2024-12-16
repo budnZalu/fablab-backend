@@ -1,6 +1,10 @@
-from django.urls import path
+from rest_framework import routers
+from django.urls import path, include
 
 from jobs import views
+
+router = routers.DefaultRouter()
+router.register(r'user', views.UserViewSet, basename='user')
 
 urlpatterns = [
     path('jobs/', views.JobsListView.as_view(), name='jobs_list'),
@@ -11,8 +15,8 @@ urlpatterns = [
     path('printings/<int:pk>/', views.PrintingDetailView.as_view(), name='printings_detail'),
     path('printings/<int:pk>/form/', views.FormPrintingView.as_view(), name='form_printing'),
     path('printings/<int:pk>/complete/', views.CompletePrintingView.as_view(), name='complete_printing'),
-    path('users/register/', views.UserRegisterView.as_view(), name='users_register'),
-    path('users/<int:pk>/edit/', views.UserEditView.as_view(), name='users_edit'),
-    path('users/login/', views.UserLoginView.as_view(), name='users_login'),
-    path('users/logout/', views.UserLogoutView.as_view(), name='users_logout'),
+    path('login', views.login_view, name='login'),
+    path('logout', views.logout_view, name='logout'),
+    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    path('', include(router.urls)),
 ]

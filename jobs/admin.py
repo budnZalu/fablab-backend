@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from jobs.models import Job, Printing, PrintingJob
+from jobs.models import Job, Printing, PrintingJob, CustomUser
 
 
 @admin.register(Job)
@@ -16,3 +16,7 @@ class PrintingAdmin(admin.ModelAdmin):
 @admin.register(PrintingJob)
 class PrintingJobAdmin(admin.ModelAdmin):
     list_display = ('printing', 'job')
+
+@admin.register(CustomUser)
+class CustomUserAdmin(admin.ModelAdmin):
+    list_display = ('email', 'is_staff', 'is_superuser')

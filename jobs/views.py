@@ -1,17 +1,36 @@
-from django.contrib.auth.models import User
+import uuid
+
+import redis
+from django.contrib.auth import get_user_model, authenticate, logout
 from django.db.models import Sum, F
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from drf_yasg.utils import swagger_auto_schema
 from minio import Minio
-from rest_framework import status
+from rest_framework import status, viewsets
+from rest_framework.decorators import permission_classes, \
+    authentication_classes, api_view
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from jobs import serializers
 from jobs.models import Job, Printing, PrintingJob
+from jobs.permissions import IsManager, IsAdmin
+
+User = get_user_model()
 
 
-def default_user():
-    return User.objects.all().first()
+def method_permission_classes(classes):
+    def decorator(func):
+        def decorated_func(self, *args, **kwargs):
+            self.permission_classes = classes
+            self.check_permissions(self.request)
+            return func(self, *args, **kwargs)
+
+        return decorated_func
+
+    return decorator
 
 
 def minio_connection():
@@ -23,6 +42,9 @@ def minio_connection():
     )
 
 
+redis_storage = redis.StrictRedis(host='localhost', port=6379)
+
+
 class JobsListView(APIView):
     def get(self, request):
         job_name = request.query_params.get('job_name', None)
@@ -30,9 +52,11 @@ class JobsListView(APIView):
         if job_name:
             jobs = jobs.filter(name__icontains=job_name)
         serializer = serializers.JobSerializer(jobs, many=True)
+        draft = None
+        if request.user:
+            draft = Printing.objects.filter(author=request.user,
+                                            status='draft').first()
 
-        draft = Printing.objects.filter(author=default_user(),
-                                        status='draft').first()
         draft_count = 0
         if draft:
             draft_count = PrintingJob.objects.filter(printing=draft).count()
@@ -43,6 +67,8 @@ class JobsListView(APIView):
             'jobs': serializer.data,
         })
 
+    @swagger_auto_schema(request_body=serializers.JobSerializer)
+    @method_permission_classes((IsManager,))
     def post(self, request):
         serializer = serializers.JobSerializer(data=request.data)
 
@@ -61,6 +87,8 @@ class JobDetailView(APIView):
         serializer = serializers.JobSerializer(job)
         return Response(serializer.data)
 
+    @swagger_auto_schema(request_body=serializers.JobSerializer)
+    @method_permission_classes((IsManager,))
     def put(self, request, pk):
         job = Job.objects.filter(id=pk, status='visible').first()
         if job is None:
@@ -72,6 +100,7 @@ class JobDetailView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @method_permission_classes((IsManager,))
     def delete(self, request, pk):
         job = Job.objects.filter(id=pk, status='visible').first()
         if job is None:
@@ -115,10 +144,10 @@ class JobPrintingView(APIView):
         if job is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        draft = Printing.objects.filter(author=default_user(),
+        draft = Printing.objects.filter(author=request.user,
                                         status='draft').first()
         if draft is None:
-            draft = Printing(author=default_user(), status='draft')
+            draft = Printing(author=request.user, status='draft')
             draft.save()
 
         pjob = PrintingJob(job=job, printing=draft)
@@ -128,7 +157,7 @@ class JobPrintingView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def put(self, request, pk):
-        draft = Printing.objects.filter(author=default_user(),
+        draft = Printing.objects.filter(author=request.user,
                                         status='draft').first()
         if draft is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -145,7 +174,7 @@ class JobPrintingView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        draft = Printing.objects.filter(author=default_user(),
+        draft = Printing.objects.filter(author=request.user,
                                         status='draft').first()
         if draft is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -159,11 +188,15 @@ class JobPrintingView(APIView):
 
 
 class PrintingListView(APIView):
+    @method_permission_classes((IsAuthenticated,))
     def get(self, request):
         printings = Printing.objects.filter(
-            author=default_user(),
             status__in=['complete', 'formed', 'rejected']
         )
+
+        user = request.user
+        if not user.is_staff:
+            printings = printings.filter(author=user)
 
         status = request.query_params.get('status', None)
         if status:
@@ -213,7 +246,8 @@ class PrintingDetailView(APIView):
 
 class FormPrintingView(APIView):
     def post(self, request, pk):
-        printing = Printing.objects.filter(id=pk).first()
+        printing = Printing.objects.filter(id=pk, author=request.user).first()
+
         if printing is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
@@ -233,6 +267,7 @@ class FormPrintingView(APIView):
 
 
 class CompletePrintingView(APIView):
+    @method_permission_classes((IsManager,))
     def post(self, request, pk):
         printing = Printing.objects.filter(id=pk).first()
         if printing is None:
@@ -243,55 +278,86 @@ class CompletePrintingView(APIView):
         if printing.status != 'formed':
             errors['error'] = "Статус заявки должен быть 'formed'."
         if action_status not in ['complete', 'reject']:
-            errors['status_error'] = "Некорректный статус. Допустимые значения: 'complete' или 'reject'."
+            errors[
+                'status_error'] = "Некорректный статус. Допустимые значения: 'complete' или 'reject'."
         if errors:
             return Response(errors, status=status.HTTP_400_BAD_REQUEST)
 
         if action_status == 'complete':
             printing.status = 'complete'
-            total_price = PrintingJob.objects.filter(printing=printing).aggregate(
-                total=Sum(F('job__price') * F('quantity'))
+            total_price = \
+            PrintingJob.objects.filter(printing=printing).aggregate(
+                total=Sum(F('job__price'))
             )['total'] or 0
             printing.total_price = total_price
         elif action_status == 'reject':
             printing.status = 'rejected'
 
         printing.complete_at = timezone.now()
-        printing.moderator = default_user()
+        printing.moderator = request.user
         printing.save()
         serializer = serializers.PrintingListSerializer(printing)
         return Response(serializer.data)
 
 
-class UserRegisterView(APIView):
-    def post(self, request):
-        serialzer = serializers.UserSerializer(data=request.data)
-        if serialzer.is_valid():
-            serialzer.save()
-            return Response(serialzer.data, status=status.HTTP_201_CREATED)
-        return Response(serialzer.errors, status=status.HTTP_400_BAD_REQUEST)
+class UserViewSet(viewsets.ModelViewSet):
+    """Класс, описывающий методы работы с пользователями
+    Осуществляет связь с таблицей пользователей в базе данных
+    """
+    queryset = User.objects.all()
+    serializer_class = serializers.UserSerializer
+    model_class = User
+
+    def create(self, request):
+        """
+        Функция регистрации новых пользователей
+        Если пользователя c указанным в request email ещё нет, в БД будет добавлен новый пользователь.
+        """
+        if self.model_class.objects.filter(
+                email=request.data['email']).exists():
+            return Response({'status': 'Exist'}, status=400)
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            self.model_class.objects.create_user(
+                email=serializer.data['email'],
+                password=serializer.data['password'],
+                is_superuser=False,
+                is_staff=False)
+            return Response({'status': 'Success'}, status=200)
+        return Response({'status': 'Error', 'error': serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    def get_permissions(self):
+        if self.action in ['create']:
+            permission_classes = [AllowAny]
+        elif self.action in ['list']:
+            permission_classes = [IsAdmin | IsManager]
+        else:
+            permission_classes = [IsAdmin]
+        return [permission() for permission in permission_classes]
 
 
-class UserEditView(APIView):
-    def put(self, request, pk):
-        user = User.objects.filter(id=pk).first()
-        if user is None:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        serialzer = serializers.UserSerializer(user, data=request.data,
-                                               partial=True)
-        if serialzer.is_valid():
-            serialzer.save()
-            return Response(serialzer.data, status=status.HTTP_200_OK)
-        return Response(serialzer.errors, status=status.HTTP_400_BAD_REQUEST)
+@authentication_classes([])
+@csrf_exempt
+@swagger_auto_schema(method='post', request_body=serializers.UserSerializer)
+@api_view(['Post'])
+@permission_classes([AllowAny])
+def login_view(request):
+    email = request.data['email']
+    password = request.data['password']
+    user = authenticate(request, email=email, password=password)
+    if user is not None:
+        random_key = str(uuid.uuid4())
+        redis_storage.set(random_key, user.id)
+
+        response = Response("{'status': 'ok'}")
+        response.set_cookie("session_id", random_key)
+
+        return response
+    else:
+        return Response("{'status': 'error', 'error': 'Login failed!'}")
 
 
-class UserLoginView(APIView):
-    def post(self, request):
-        return Response({'status': 'Произведена аутентификация',
-                         'info': 'Метод не реализуется в лаб. 3'})
-
-
-class UserLogoutView(APIView):
-    def post(self, request):
-        return Response({'status': 'Произведена деавторизация',
-                         'info': 'Метод не реализуется в лаб. 3'})
+def logout_view(request):
+    logout(request._request)
+    return Response({'status': 'Success'})
