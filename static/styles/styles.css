@@ -1,9 +1,13 @@
-*{
+* {
     font: 400 20px/1.16 "Roboto Condensed", Helvetica, Arial, serif;
 }
 
 a, u {
     text-decoration: none;
+}
+
+button {
+    cursor: pointer;
 }
 
 .fablab-cart.main {
@@ -134,6 +138,20 @@ a, u {
     gap: 18px 0;
     width: 579px;
     min-width: 0;
+}
+
+.fablab-cart .delete-button {
+display: flex;
+    justify-content: center;
+    margin: 34px auto;
+    width: 257px;
+    max-width: 100%;
+    font: 400 24px/1.16 "Roboto Condensed", Helvetica, Arial, serif;
+    color: white;
+    text-align: center;
+    background-color: #cc2222;
+    border-radius: 22px;
+    padding: 8px 40px;
 }
 
 .fablab-cart .card-title {
@@ -501,8 +519,12 @@ a, u {
     color: white;
     text-align: center;
     background-color: #2c2c2c;
-    border-radius: 22.04px;
+    border-radius: 22px;
     padding: 8px 40px;
+}
+
+.card-btn:hover {
+    scale: 110%;
 }
 
 .fablab-index .card-container1 {

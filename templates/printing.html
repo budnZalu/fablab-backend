@@ -36,7 +36,11 @@
             <h2 class="subtitle">Корзина</h2>
             <div class="name-input">
                 <div class="name">
-                    {{ printing.name }}
+                    {% if printing.name %}
+                        {{ printing.name }}
+                    {% else %}
+                        Введите ФИО
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -58,7 +62,7 @@
                             </div>
                             <div class="flex_col1">
                                 <div class="number-input">
-                                    <h3 class="medium_title1">1</h3>
+                                    <h3 class="medium_title1">{{ job.quantity }}</h3>
                                 </div>
                                 <h3 class="number-text">Кол-во</h3>
                             </div>
@@ -67,6 +71,10 @@
                 </div>
             {% endfor %}
         </div>
+        <form method="POST" action="{% url 'delete_printing' printing.id %}">
+            {% csrf_token %}
+            <button type="submit" class="delete-button">Удалить</button>
+        </form>
     </section>
 
     <section class="footer">

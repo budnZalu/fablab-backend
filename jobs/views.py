@@ -1,78 +1,81 @@
-from django.shortcuts import render
+from django.db import IntegrityError, connection
+from django.db.models import F
+from django.http import HttpResponse
+from django.shortcuts import render, redirect
 
-
-JOBS = [
-    {
-        'id': 1,
-        'name': 'Двухэкструдерная 3D печать',
-        'info': ('Использование двухэкструдерного 3D принтера просто '
-                 'необходимо, при печати сложных 3D моделей с '
-                 'растворяемыми поддержками.'),
-        'price': 700,
-        'image': 'http://127.0.0.1:9000/fablab/ex3d2.jpeg'
-    },
-    {
-        'id': 2,
-        'name': 'Одноэкструдерная 3D печать',
-        'info': ('Печать с использованием одноэкструдного 3D принтера, '
-                 'отлично подойдёт для печати простых деталей и моделей.'),
-        'price': 500,
-        'image': 'http://127.0.0.1:9000/fablab/ex3d.png'
-    },
-    {
-        'id': 3,
-        'name': '3D сканирование объекта',
-        'info': ('Сканирование позволяет пользователям либо воспроизвести '
-                 'деталь путём обратного проектирования, '
-                 'либо проверить её путём анализа размеров.'),
-        'price': 300,
-        'image': 'http://127.0.0.1:9000/fablab/scan.png'
-    },
-    {
-        'id': 4,
-        'name': 'Шлифовка детали/модели',
-        'info': ('Шлифовка детали на профессиональном шлифовальном станке '
-                 'для выравнивания краёв и коррекции формы модели.'),
-        'price': 500,
-        'image': 'http://127.0.0.1:9000/fablab/correction.png'
-    }
-]
-
-PRINTINGS = [
-    {
-        'id': 1,
-        'status': 'draft',
-        'name': 'Иван Иванов'
-    }
-]
-
+from jobs.models import Job, Printing, PrintingJob
 
 def index(request):
     job_name = request.GET.get('job_name', '').lower()
-    if job_name:
-        data = [job for job in JOBS if job_name in job['name'].lower()]
+    jobs = Job.objects.filter(name__icontains=job_name).exclude(
+        status='deleted')
+    draft = Printing.objects.filter(author=request.user,
+                                    status='draft').first()
+    if draft:
+        draft_jobs = PrintingJob.objects.filter(printing=draft).values_list(
+            'id', flat=True)
     else:
-        data = JOBS
+        draft_jobs = []
     return render(
         request,
         'index.html',
-        context={'jobs': data}
+        context={'jobs': jobs,
+                 'draft': draft,
+                 'draft_jobs': draft_jobs}
     )
 
 
 def job_detail(request, pk):
+    job = Job.objects.get(pk=pk)
+    if job.status == 'deleted':
+        return redirect('/')
     return render(
         request,
         'job.html',
-        context={'job': JOBS[int(pk) - 1]}
+        context={'job': job}
     )
 
 
 def printing_detail(request, pk):
+    printing = Printing.objects.get(pk=pk)
+    if printing.status == 'deleted':
+        return HttpResponse(status=404)
+    jobs = Job.objects.filter(printingjob__printing_id=pk).annotate(
+        quantity=F('printingjob__quantity')
+    )
     return render(
         request,
         'printing.html',
-        context={'printing': PRINTINGS[pk - 1],
-                 'jobs': [job for job in JOBS if job['id'] in [1, 3]]
-                 }
+        context={'printing': printing, 'jobs': jobs},
     )
+
+
+def add_to_printing(request, pk):
+    if request.method == 'POST':
+        job = Job.objects.get(pk=pk)
+        printing = Printing.objects.filter(status='draft',
+                                           author=request.user).first()
+        if not printing:
+            printing = Printing.objects.create(
+                author=request.user
+            )
+
+        try:
+            PrintingJob.objects.create(
+                job=job,
+                printing=printing,
+                quantity=1
+            )
+        except IntegrityError:
+            PrintingJob.objects.filter(job=job, printing=printing).delete()
+        return redirect('/')
+
+
+def delete_printing(request, pk):
+    if request.method == 'POST':
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE jobs_printing SET status = 'deleted' WHERE id = %s",
+                [pk]
+            )
+        return redirect('/')
