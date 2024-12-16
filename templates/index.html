@@ -45,6 +45,11 @@
                          alt="alt text"/>
                 </button>
             </form>
+            <a href="{% url 'printing_list' %}">
+                <img class="list-button"
+                     src="{% static 'images/list.svg' %}"
+                     alt="alt text"/>
+            </a>
             {% if draft %}
                 <a href="{% url 'printing' draft.id %}">
                     <img class="cart-button"

@@ -12,4 +12,5 @@ urlpatterns = [
     path('jobs/<int:pk>/add', views.add_to_printing, name='add_to_printing'),
     path('printings/<int:pk>', views.printing_detail, name='printing'),
     path('printings/<int:pk>/delete', views.delete_printing, name='delete_printing'),
+    path('printings/', views.printing_list, name='printing_list'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

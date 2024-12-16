@@ -1,6 +1,5 @@
 from django.db import IntegrityError, connection
 from django.db.models import F
-from django.http import HttpResponse
 from django.shortcuts import render, redirect
 
 from jobs.models import Job, Printing, PrintingJob
@@ -39,7 +38,7 @@ def job_detail(request, pk):
 def printing_detail(request, pk):
     printing = Printing.objects.get(pk=pk)
     if printing.status == 'deleted':
-        return HttpResponse(status=404)
+        return redirect('/')
     jobs = Job.objects.filter(printingjob__printing_id=pk).annotate(
         quantity=F('printingjob__quantity')
     )
@@ -79,3 +78,18 @@ def delete_printing(request, pk):
                 [pk]
             )
         return redirect('/')
+
+
+def printing_list(request):
+    printings = Printing.objects.all()
+    for printing in printings:
+        for field in ['name', 'formed_at', 'complete_at']:
+            if getattr(printing, field) is None:
+                setattr(printing, field, "-")
+        if getattr(printing, 'total_price') is None:
+            setattr(printing, 'total_price', 0)
+    return render(
+        request,
+        'printing_list.html',
+        context={'printings': printings}
+    )

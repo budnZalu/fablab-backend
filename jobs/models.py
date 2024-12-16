@@ -40,7 +40,7 @@ class Printing(models.Model):
 class PrintingJob(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE)
     printing = models.ForeignKey(Printing, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(blank=True, null=True)
+    duration = models.PositiveIntegerField(blank=True, null=True)
 
     class Meta:
         unique_together = (('job', 'printing'),)
